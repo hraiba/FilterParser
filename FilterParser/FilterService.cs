@@ -2,23 +2,17 @@ namespace FilterParser;
 
 public class FilterService : IFilterService
 {
+    private readonly ITokenization _tokenization;
+    
+    public FilterService(ITokenization tokenization) 
+    => _tokenization = tokenization;
+
     public FilterGroups Tokenize(Type type, string filter)
     {
-        var tokens = filter.Split(";", StringSplitOptions.RemoveEmptyEntries);
-        var andGroup = tokens
-            .Where(t => t.StartsWith("and(")).Select(t => t[4..^1])
-            .FirstOrDefault()
-            .TokenizeAnd(type);
-        var orGroup = tokens
-            .Where(t => t.StartsWith("or("))
-            .Select(t => t[3..^1])
-            .FirstOrDefault()
-            .TokenizeOr(type);
-        var noGroup = tokens
-            .Where(t => t.StartsWith("no(")).Select(t => t[3..^1])
-            .FirstOrDefault()
-            .TokenizeNo(type);
-
-        return new FilterGroups(andGroup, orGroup, noGroup);
+        var filterValues = _tokenization.Tokenize(type, filter).ToArray(); 
+        var x =  new FilterGroups(
+            filterValues.Where(x => x.Operation == ConjunctionToken.And), 
+            filterValues.Where(x => x.Operation == ConjunctionToken.Or));
+        return x;
     }
 }

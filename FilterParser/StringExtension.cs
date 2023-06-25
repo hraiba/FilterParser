@@ -14,16 +14,18 @@ public static class StringExtension
         var tokens = filter.Split("&", StringSplitOptions.RemoveEmptyEntries);
         return tokens
             .Select(t => t.Split("=", StringSplitOptions.RemoveEmptyEntries))
-            .Select(t =>
-            {
-                var properties = type.GetProperties();
-                var propertyInfo =
-                    Array.Find(properties, x => x.Name.Equals(t[0], StringComparison.OrdinalIgnoreCase));
+            .Select(t => FilterValue(type, t));
+    }
 
-                return propertyInfo is null
-                    ? new FilterValue("Unknown", null, null)
-                    : new FilterValue(propertyInfo.Name, t[1], propertyInfo.PropertyType);
-            });
+    private static FilterValue FilterValue(Type type, string[] t)
+    {
+        var properties = type.GetProperties();
+        var propertyInfo =
+            Array.Find(properties, x => x.Name.Equals(t[0], StringComparison.OrdinalIgnoreCase));
+
+        return propertyInfo is null
+            ? new FilterValue(ConjunctionToken.And, "Unknown", null, null)
+            : new FilterValue(ConjunctionToken.And, propertyInfo.Name, t[1], propertyInfo.PropertyType);
     }
 
 

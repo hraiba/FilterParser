@@ -1,7 +1,6 @@
 namespace FilterParser;
 
-public record FilterGroups(IEnumerable<FilterValue> AndGroup, IEnumerable<FilterValue> OrGroup,
-    IEnumerable<FilterValue> NoGroup)
+public record FilterGroups(IEnumerable<FilterValue> AndGroup, IEnumerable<FilterValue> OrGroup)
 {
     public bool All(Func<object, bool> func)
     {

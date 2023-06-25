@@ -1,3 +1,3 @@
 namespace FilterParser;
 
-public record FilterValue(string Token, object? Value, Type? Type);
+public record FilterValue(ConjunctionToken Operation,  string Token, object? Value, Type? Type);

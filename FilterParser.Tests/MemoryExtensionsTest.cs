@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using FluentAssertions;
 using Xunit;
 
@@ -21,7 +20,7 @@ public class MemoryExtensionsTest
         result[1].ToString().Should().Be(expected[1]);
         result[2].ToString().Should().Be(expected[2]);
     }
-    
+
     [Fact]
     public void ShouldReturnEmptyListWhenFilterEmptyString()
     {
@@ -31,6 +30,7 @@ public class MemoryExtensionsTest
         result.Should().NotBeNull();
         result.Should().BeEmpty();
     }
+
     [Fact]
     public void ShouldReturnEmptyListWhenFilterNull()
     {
@@ -40,7 +40,7 @@ public class MemoryExtensionsTest
         result.Should().NotBeNull();
         result.Should().BeEmpty();
     }
-    
+
     [Fact]
     public void ShouldReturnSourceWhenDelimiterIsZero()
     {
@@ -52,5 +52,5 @@ public class MemoryExtensionsTest
         result.Should().NotBeEmpty();
         result.Should().HaveCount(1);
         result[0].ToString().Should().Be(expected[0]);
-    }   
+    }
 }

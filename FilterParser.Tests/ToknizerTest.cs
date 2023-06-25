@@ -1,15 +1,24 @@
+﻿using FluentAssertions;
+using Xunit;
+
+namespace FilterParser.Tests;
+
+public class TokenizerTest
+{
     [Fact]
-    public void ShouldReturnListOfReadOnlyMemory()
+    public void ShouldReturnGroup()
     {
-        const string filter = "(name=John|id=1);(age=20|isAdmin=true);(age=20|isAdmin=true)";
-        ReadOnlySpan<char> span = filter.AsSpan();
-        var expected = filter.Split(';');
-        var result = span.Split(';').ToArray();
+        var filter = "(name=John|id=1);(age=20|isAdmin=true);(name=20|isAdmin=true);";
+        ITokenization tokenization = new Tokenization();
+        var result = tokenization.Tokenize(typeof(Model), filter);
         result.Should().NotBeNull();
-        result.Should().NotBeEmpty();
-        result.Should().HaveCount(3);
-        result[0].ToString().Should().Be(expected[0]);
-        result[1].ToString().Should().Be(expected[1]);
-        result[2].ToString().Should().Be(expected[2]);
     }
+}
+
+public class Model
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public int Age { get; set; }
+    public bool IsAdmin { get; set; }
 }
