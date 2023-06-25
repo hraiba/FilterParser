@@ -4,5 +4,6 @@
     &lt;TestId&gt;xUnit::24550AC7-3DCB-4618-96BA-F99B1AFF3F37::net7.0::FilterParser.Tests.FilterServiceTests.ShouldReturnEmptyGroups&lt;/TestId&gt;&#xD;
     &lt;TestId&gt;xUnit::24550AC7-3DCB-4618-96BA-F99B1AFF3F37::net7.0::FilterParser.Tests.TokenizerTest.ShouldReturnGroup&lt;/TestId&gt;&#xD;
     &lt;TestId&gt;xUnit::24550AC7-3DCB-4618-96BA-F99B1AFF3F37::net7.0::FilterParser.Tests.TokenizerTest.ShouldReturnListOfReadOnlyMemory&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::24550AC7-3DCB-4618-96BA-F99B1AFF3F37::net7.0::FilterParser.Tests.MemoryExtensionsTest&lt;/TestId&gt;&#xD;
   &lt;/TestAncestor&gt;&#xD;
 &lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>
