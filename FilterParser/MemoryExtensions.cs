@@ -2,11 +2,21 @@
 
 public static class MemoryExtensions
 {
-    public static IEnumerable<ReadOnlyMemory<char>> Split(this ReadOnlySpan<char> source, char delimiter)
+    public static ReadOnlyMemory<ReadOnlyMemory<char>> Split(this ReadOnlySpan<char> source, char delimiter)
     {
+        if (source.Length == 0 || source.IsWhiteSpace())
+        {
+            return Array.Empty<ReadOnlyMemory<char>>();
+        }
+
+        if (delimiter == '\0')
+        {
+            return new ReadOnlyMemory<char>[] { source.ToArray() };
+        }
+        
         var segments = new List<ReadOnlyMemory<char>>();
 
-        int startIndex = 0;
+        var startIndex = 0;
         int delimiterIndex;
 
         while ((delimiterIndex = source[startIndex..].IndexOf(delimiter)) != -1)
