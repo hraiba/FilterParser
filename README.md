@@ -1,2 +1,2 @@
 # FilterParser
-parse a string filter and return an IQueryable
+parse a string filter and return an IQueryable.
