@@ -64,22 +64,25 @@ public static class MemoryExtensions
         }
 
         ReadOnlyMemory<ReadOnlyMemory<char>> tokens = source.Span.Split(delimiter);
-
-        return tokens
+         List<Token> xx =  tokens
             .ToArray()
-            .Select(token => CreateFilterValue(operation, type, token.Span.Split('=').ToArray()))
+            .Select(token => CreateFilterValue( type, token.Span.Split('=').ToArray()))
             .ToList();
+          return Array.Empty<FilterValue>();
     }
 
 
-    private static FilterValue CreateFilterValue(ConjunctionToken operation, Type type, ReadOnlyMemory<char>[] t)
+    private static Token CreateFilterValue(Type type, ReadOnlyMemory<char>[] t)
     {
         var properties = type.GetProperties();
         var propertyInfo =
             Array.Find(properties, x => x.Name.Equals(t[0].ToString(), StringComparison.OrdinalIgnoreCase));
 
         return propertyInfo is null
-            ? new FilterValue(operation, "Unknown", null, null)
-            : new FilterValue(operation, propertyInfo.Name, t[1].ToString(), propertyInfo.PropertyType);
+            ? new Token( "Unknown", null, null)
+            : new Token(
+                propertyInfo.Name,
+                t[1].ToString(),
+                propertyInfo.PropertyType);
     }
 }

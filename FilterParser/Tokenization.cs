@@ -18,10 +18,11 @@ public class Tokenization : ITokenization
             return Enumerable.Empty<FilterValue>();
         }
 
-        var groups = filter.Split(delimiter);
+        ReadOnlyMemory<ReadOnlyMemory<char>> groups = filter.Split(delimiter);
         var filterValues = new List<FilterValue>();
+        var GroupedValues = new List<FilterGroups>();
         var array = groups.ToArray();
-        foreach (var group in array)
+        foreach (ReadOnlyMemory<char> group in array)
         {
             filterValues.AddRange(group.Tokenize(type));
         }

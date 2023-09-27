@@ -1,4 +1,5 @@
-﻿using FluentAssertions;
+﻿using System.Collections.Generic;
+using FluentAssertions;
 using Xunit;
 
 namespace FilterParser.Tests;
@@ -8,9 +9,13 @@ public class TokenizerTest
     [Fact]
     public void ShouldReturnGroup()
     {
-        var filter = "(name=John|id=1);(age=20|isAdmin=true);(name=20|isAdmin=true);";
+        /*
+         * Select * From Model
+          Where (name=John Or id=1) And (age=20 Or isAdmin=true) And (name=20 Or isAdmin=true)
+         */
+        const string filter = "(name=John|id=1);(age=20|isAdmin=true);(name=20|isAdmin=true);";
         ITokenization tokenization = new Tokenization();
-        var result = tokenization.Tokenize(typeof(Model), filter);
+        IEnumerable<FilterValue> result = tokenization.Tokenize(typeof(Model), filter);
         result.Should().NotBeNull();
     }
 }
