@@ -5,21 +5,43 @@ using System.Text.Json.Serialization;
 
 namespace FilterParserLib;
 
-public abstract class FilterParser<T>
+public static class FilterParser
 {
-    public static IQueryable<T> ApplyFilter(List<T> dataSet, string jsonStrring)
+    public static IQueryable<T> ApplyFilter<T>(IEnumerable<T> dataSet, string? jsonString)
     {
-        var rootFilter = JsonSerializer.Deserialize<RootFilter>(jsonStrring, new JsonSerializerOptions()
+        if (dataSet == null)
         {
-            PropertyNameCaseInsensitive = true,
-            Converters = {new JsonStringEnumConverter()}
-        });
+            throw new ArgumentNullException(nameof(dataSet));
+        }
+
+        if (!dataSet.Any())
+        {
+            return Enumerable.Empty<T>().AsQueryable();
+        }
+
+        if (string.IsNullOrWhiteSpace(jsonString))
+        {
+            return dataSet.AsQueryable();
+        }
+
+        var rootFilter = GetFilter(jsonString);
 
         var query = dataSet.AsQueryable();
         return ApplyFilter(query, rootFilter);
     }
 
-    public static IQueryable<T> ApplyFilter(IQueryable<T> query, RootFilter? rootFilter)
+    public static IQueryable<T> ApplyFilter<T>(this IQueryable<T> query, string jsonString)
+    {
+        if (string.IsNullOrWhiteSpace(jsonString))
+        {
+            return query;
+        }
+
+        var filter = GetFilter(jsonString);
+        return ApplyFilter(query, filter);
+    }
+
+    private static IQueryable<T> ApplyFilter<T>(IQueryable<T> query, RootFilter? rootFilter)
     {
         if (rootFilter?.Filters == null || !rootFilter.Filters.Any())
         {
@@ -28,8 +50,8 @@ public abstract class FilterParser<T>
 
         return rootFilter.Operator switch
         {
-            Operator.And => query.Where(GetAndFilterExpression(rootFilter.Filters)),
-            Operator.Or => query.Where(GetOrFilterExpression(rootFilter.Filters)),
+            Operator.And => query.Where(GetAndFilterExpression<T>(rootFilter.Filters)),
+            Operator.Or => query.Where(GetOrFilterExpression<T>(rootFilter.Filters)),
             _ => query
         };
     }
@@ -57,21 +79,21 @@ public abstract class FilterParser<T>
         var property = Expression.Property(parameterExpression, filter.Field);
         var constant = Expression.Constant(value);
 
-        return filter.Keyword switch
+        return filter.Operation switch
         {
-            Keyword.Equal => Expression.Equal(property, constant),
-            Keyword.NotEqual => Expression.NotEqual(property, constant),
-            Keyword.LessThan => Expression.LessThan(property, constant),
-            Keyword.LessThanOrEqual => Expression.LessThanOrEqual(property, constant),
-            Keyword.GreaterThan => Expression.GreaterThan(property, constant),
-            Keyword.GreaterThanOrEqual => Expression.GreaterThanOrEqual(property, constant),
-            Keyword.Contains => GetContains(property, constant),
-            Keyword.StartWith => GetStartWith(property, constant),
-            _ => throw new ArgumentException($"Unsported operator: {filter.Keyword}"),
+            Operation.Equal => Expression.Equal(property, constant),
+            Operation.NotEqual => Expression.NotEqual(property, constant),
+            Operation.LessThan => Expression.LessThan(property, constant),
+            Operation.LessThanOrEqual => Expression.LessThanOrEqual(property, constant),
+            Operation.GreaterThan => Expression.GreaterThan(property, constant),
+            Operation.GreaterThanOrEqual => Expression.GreaterThanOrEqual(property, constant),
+            Operation.Contains => GetContains(property, constant),
+            Operation.StartWith => GetStartWith(property, constant),
+            _ => throw new ArgumentException($"Unsupported operation: {filter.Operation}"),
         };
     }
 
-    private static Expression<Func<T, bool>> GetAndFilterExpression(IEnumerable<Filter> filters)
+    private static Expression<Func<T, bool>> GetAndFilterExpression<T>(IEnumerable<Filter> filters)
     {
         if (!filters.Any())
         {
@@ -92,7 +114,7 @@ public abstract class FilterParser<T>
         return Expression.Lambda<Func<T, bool>>(andExpression, parameterExpression);
     }
 
-    private static Expression<Func<T, bool>> GetOrFilterExpression(IEnumerable<Filter> filters)
+    private static Expression<Func<T, bool>> GetOrFilterExpression<T>(IEnumerable<Filter> filters)
     {
         if (!filters.Any())
         {
@@ -136,7 +158,7 @@ public abstract class FilterParser<T>
 
         return filter.Value.ValueKind switch
         {
-            JsonValueKind.Number => GetNumber(filter),
+            JsonValueKind.Number => GetNumber(filter.Value),
             JsonValueKind.String => filter.Value.GetString(),
             JsonValueKind.True => filter.Value.GetBoolean(),
             JsonValueKind.False => filter.Value.GetBoolean(),
@@ -144,23 +166,32 @@ public abstract class FilterParser<T>
         };
     }
 
-    private static object GetNumber(Filter filter)
+    private static object GetNumber(JsonElement filterValue)
     {
-        if (filter.Value.TryGetInt32(out var @int))
+        if (filterValue.TryGetInt32(out var @int))
         {
             return @int;
         }
 
-        if (filter.Value.TryGetInt64(out var int64))
+        if (filterValue.TryGetInt64(out var int64))
         {
             return int64;
         }
 
-        if (filter.Value.TryGetDouble(out var @double))
+        if (filterValue.TryGetDouble(out var @double))
         {
             return @double;
         }
 
-        return filter.Value.GetDecimal();
+        return filterValue.GetDecimal();
+    }
+
+    private static RootFilter? GetFilter(string jsonString)
+    {
+        return JsonSerializer.Deserialize<RootFilter>(jsonString, new JsonSerializerOptions()
+        {
+            PropertyNameCaseInsensitive = true,
+            Converters = {new JsonStringEnumConverter()}
+        });
     }
 }

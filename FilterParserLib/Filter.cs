@@ -2,4 +2,4 @@ using System.Text.Json;
 
 namespace FilterParserLib;
 
-public  record Filter(string Field, Keyword Keyword, JsonElement Value, Operator Operator, IEnumerable<Filter>? Filters);
+internal  record Filter(string Field, Operation Operation, JsonElement Value, Operator Operator, IEnumerable<Filter>? Filters);

@@ -1,3 +1,3 @@
 namespace FilterParserLib;
 
-public record RootFilter (IEnumerable<Filter>? Filters, Operator Operator);
+internal record RootFilter (IEnumerable<Filter>? Filters, Operator Operator);

@@ -1,4 +1,3 @@
-using FilterParserLib;
 using Xunit;
 
 namespace FilterParser.Tests;
@@ -10,37 +9,38 @@ public class FilterParserTests
     {
         //Arrange
         const string filter = """
-                     {
-                       "filters": [
-                         {
-                           "field": "Name",
-                           "keyword": "contains",
-                           "value": "Mo"
-                         },
-                         {
-                           "keyword": "contains",
-                           "field": "LastName",
-                           "value": "Hr"
-                         },
-                         {
-                           "keyword": "equal",
-                           "field": "Mark",
-                           "value": 9
-                         }
-                       ],
-                       "operator": "and"
-                     }
-                     """;
+                              {
+                                "filters": [
+                                  {
+                                    "field": "Name",
+                                    "operation": "contains",
+                                    "value": "Mo"
+                                  },
+                                  {
+                                    "operation": "contains",
+                                    "field": "LastName",
+                                    "value": "Hr"
+                                  },
+                                  {
+                                    "operation": "equal",
+                                    "field": "Mark",
+                                    "value": 9
+                                  }
+                                ],
+                                "operator": "and"
+                              }
+                              """;
         var students = new List<Student>()
         {
             new() {Name = "Mohammad", LastName = "Hraiba", Mark = 9},
             new() {Name = "Louay", LastName = "Hraiba", Mark = 8},
         };
-        
+
         //Act
-        var result = FilterParser<Student>.ApplyFilter(students, filter);
+        var result = FilterParserLib.FilterParser.ApplyFilter(students, filter);
         var enumerateResult = result.ToList();
         Assert.NotNull(result);
+        Assert.IsAssignableFrom<IQueryable>(result);
         Assert.NotEmpty(enumerateResult);
         Assert.Equal(1, result.Count());
     }
@@ -55,11 +55,11 @@ public class FilterParserTests
                                 "filters": [
                                   {
                                     "field": "Name",
-                                    "keyword": "contains",
+                                    "operation": "contains",
                                     "value": "Mo"
                                   },
                                   {
-                                    "keyword": "equal",
+                                    "operation": "equal",
                                     "field": "Mark",
                                     "value": 8
                                   }
@@ -71,14 +71,74 @@ public class FilterParserTests
         {
             new() {Name = "Mohammad", LastName = "Hraiba", Mark = 9},
             new() {Name = "Louay", LastName = "Hraiba", Mark = 8},
-            new() {Name = "Johndoe", LastName = "smith",  Mark = 1}
+            new() {Name = "Johndoe", LastName = "smith", Mark = 1}
         };
-        
+
         //Act
-        var result = FilterParser<Student>.ApplyFilter(students, filter);
+        var result = FilterParserLib.FilterParser.ApplyFilter(students, filter);
         var enumerateResult = result.ToList();
         Assert.NotNull(result);
+        Assert.IsAssignableFrom<IQueryable>(result);
         Assert.NotEmpty(enumerateResult);
         Assert.Equal(2, result.Count());
+    }
+
+    [Fact]
+    public void Given_Empty_Filter_Return_IQueryable()
+    {
+        //Arrange
+        const string filter = """
+                              {
+                                "filters": [],
+                                "operator": "and"
+                              }
+                              """;
+        var students = new List<Student>()
+        {
+            new() {Name = "Mohammad", LastName = "Hraiba", Mark = 9},
+            new() {Name = "Louay", LastName = "Hraiba", Mark = 8},
+            new() {Name = "Johndoe", LastName = "smith", Mark = 1}
+        };
+
+        //Act
+        var result = FilterParserLib.FilterParser.ApplyFilter(students, filter);
+        var enumerateResult = result.ToList();
+        Assert.NotNull(result);
+        Assert.IsAssignableFrom<IQueryable>(result);
+        Assert.NotEmpty(enumerateResult);
+        Assert.Equal(3, result.Count());
+    }
+
+    [Fact]
+    public void Given_Null_Filter_Return_IQueryable()
+    {
+        //Arrange
+        const string? filter = null;
+        var students = new List<Student>()
+        {
+            new() {Name = "Mohammad", LastName = "Hraiba", Mark = 9},
+            new() {Name = "Louay", LastName = "Hraiba", Mark = 8},
+            new() {Name = "Johndoe", LastName = "smith", Mark = 1}
+        };
+
+        //Act
+        var result = FilterParserLib.FilterParser.ApplyFilter(students, filter);
+        var enumerateResult = result.ToList();
+        Assert.NotNull(result);
+        Assert.IsAssignableFrom<IQueryable>(result);
+        Assert.NotEmpty(enumerateResult);
+        Assert.Equal(3, result.Count());
+    }
+    
+    [Fact]
+    public void Given_Null_Filter_And_Null_DataSet_Throw_NullArgumentException()
+    {
+        //Arrange
+        const string? filter = null;
+        IEnumerable<Student>? students = null;
+
+        //Act && Assert
+        Assert.Throws<ArgumentNullException>(() => FilterParserLib.FilterParser.ApplyFilter(students, filter));
+
     }
 }
