@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace FilterParserLib;
 
-public abstract class CompositeFilter<T>
+public abstract class FilterParser<T>
 {
     public static IQueryable<T> ApplyFilter(List<T> dataSet, string jsonStrring)
     {
@@ -26,10 +26,10 @@ public abstract class CompositeFilter<T>
             return query;
         }
 
-        return rootFilter.Logic switch
+        return rootFilter.Operator switch
         {
-            Logic.And => query.Where(GetAndFilterExpression(rootFilter.Filters)),
-            Logic.Or => query.Where(GetOrFilterExpression(rootFilter.Filters)),
+            Operator.And => query.Where(GetAndFilterExpression(rootFilter.Filters)),
+            Operator.Or => query.Where(GetOrFilterExpression(rootFilter.Filters)),
             _ => query
         };
     }
@@ -38,11 +38,11 @@ public abstract class CompositeFilter<T>
     {
         if (filter.Filters != null && filter.Filters.Any())
         {
-            return filter.Logic switch
+            return filter.Operator switch
             {
-                Logic.And => filter.Filters.Select(f => BuildFilterExpression(f, parameterExpression))
+                Operator.And => filter.Filters.Select(f => BuildFilterExpression(f, parameterExpression))
                     .Aggregate(Expression.AndAlso),
-                Logic.Or => filter.Filters.Select(f => BuildFilterExpression(f, parameterExpression))
+                Operator.Or => filter.Filters.Select(f => BuildFilterExpression(f, parameterExpression))
                     .Aggregate(Expression.OrElse),
                 _ => throw new InvalidEnumArgumentException()
             };
@@ -51,48 +51,27 @@ public abstract class CompositeFilter<T>
         var value = GetValue(filter);
         if (value is null)
         {
-            return Expression.Throw(Expression.Constant(new ArgumentException($"Invalid value: {filter?.Value}")));
+            return Expression.Throw(Expression.Constant(new ArgumentException($"Invalid value: {filter.Value}")));
         }
 
         var property = Expression.Property(parameterExpression, filter.Field);
         var constant = Expression.Constant(value);
 
-        return filter.Operator switch
+        return filter.Keyword switch
         {
-            Operator.Equal => Expression.Equal(property, constant),
-            Operator.NotEqual => Expression.NotEqual(property, constant),
-            Operator.LessThan => Expression.LessThan(property, constant),
-            Operator.LessThanOrEqual => Expression.LessThanOrEqual(property, constant),
-            Operator.GreaterThan => Expression.GreaterThan(property, constant),
-            Operator.GreaterThanOrEqual => Expression.GreaterThanOrEqual(property, constant),
-            Operator.Contains => GetContains(property, constant),
-            Operator.StartWith => GetStartWith(property, constant),
-            _ => throw new ArgumentException($"Unsported operator: {filter.Operator}"),
+            Keyword.Equal => Expression.Equal(property, constant),
+            Keyword.NotEqual => Expression.NotEqual(property, constant),
+            Keyword.LessThan => Expression.LessThan(property, constant),
+            Keyword.LessThanOrEqual => Expression.LessThanOrEqual(property, constant),
+            Keyword.GreaterThan => Expression.GreaterThan(property, constant),
+            Keyword.GreaterThanOrEqual => Expression.GreaterThanOrEqual(property, constant),
+            Keyword.Contains => GetContains(property, constant),
+            Keyword.StartWith => GetStartWith(property, constant),
+            _ => throw new ArgumentException($"Unsported operator: {filter.Keyword}"),
         };
     }
 
-    private static Expression<Func<T, bool>> GetAndFilterExpression(List<Filter> filters)
-    {
-        if (!filters.Any())
-        {
-             Expression.Throw(Expression.Constant(new ArgumentException("Invalid filters")));
-        }
-
-        var parameterExpression = Expression.Parameter(typeof(T), "x");
-        Expression andExpression = filters
-            .Select(filter => BuildFilterExpression(filter, parameterExpression))
-            .Aggregate<Expression?, Expression?>(
-                null,
-                (current, filterExpression) =>
-                    current == null
-                        ? filterExpression
-                        : Expression.AndAlso(current, filterExpression!)) 
-                                    ?? Expression.Constant(false);
-
-        return Expression.Lambda<Func<T, bool>>(andExpression, parameterExpression);
-    }
-
-    private static Expression<Func<T, bool>> GetOrFilterExpression(List<Filter> filters)
+    private static Expression<Func<T, bool>> GetAndFilterExpression(IEnumerable<Filter> filters)
     {
         if (!filters.Any())
         {
@@ -100,27 +79,33 @@ public abstract class CompositeFilter<T>
         }
 
         var parameterExpression = Expression.Parameter(typeof(T), "x");
-        Expression? orExpression = null;
-        foreach (var filter in filters)
+        Expression andExpression = filters
+                                       .Select(filter => BuildFilterExpression(filter, parameterExpression))
+                                       .Aggregate<Expression?, Expression?>(
+                                           null,
+                                           (current, filterExpression) =>
+                                               current == null
+                                                   ? filterExpression
+                                                   : Expression.AndAlso(current, filterExpression!))
+                                   ?? Expression.Constant(false);
+
+        return Expression.Lambda<Func<T, bool>>(andExpression, parameterExpression);
+    }
+
+    private static Expression<Func<T, bool>> GetOrFilterExpression(IEnumerable<Filter> filters)
+    {
+        if (!filters.Any())
         {
-            var filterExpression = BuildFilterExpression(filter, parameterExpression);
-            if (filterExpression != null)
-            {
-                if (orExpression == null)
-                {
-                    orExpression = filterExpression;
-                }
-                else
-                {
-                    orExpression = Expression.OrElse(orExpression, filterExpression);
-                }
-            }
+            Expression.Throw(Expression.Constant(new ArgumentException("Invalid filters")));
         }
 
-        if (orExpression == null)
-        {
-            orExpression = Expression.Constant(false);
-        }
+        var parameterExpression = Expression.Parameter(typeof(T), "x");
+        Expression orExpression = filters.Select(filter => BuildFilterExpression(filter, parameterExpression))
+                                      .Aggregate<Expression?, Expression?>(null, (current, filterExpression) =>
+                                          current == null
+                                              ? filterExpression
+                                              : Expression.OrElse(current, filterExpression!))
+                                  ?? Expression.Constant(false);
 
         return Expression.Lambda<Func<T, bool>>(orExpression, parameterExpression);
     }
@@ -129,7 +114,7 @@ public abstract class CompositeFilter<T>
     {
         return Expression.Call(
             property,
-            typeof(string).GetMethod("Contains", new[] {typeof(string)}),
+            typeof(string).GetMethod("Contains", new[] {typeof(string)})!,
             constant);
     }
 
@@ -137,8 +122,8 @@ public abstract class CompositeFilter<T>
     {
         var startWithMethod =
             typeof(string).GetMethod("StartsWith", new[] {typeof(string), typeof(StringComparison)});
-        var constantLower = Expression.Call(constant, typeof(string).GetMethod("ToLower", Type.EmptyTypes));
-        return Expression.Call(property, startWithMethod, constantLower,
+        var constantLower = Expression.Call(constant, typeof(string).GetMethod("ToLower", Type.EmptyTypes)!);
+        return Expression.Call(property, startWithMethod!, constantLower,
             Expression.Constant(StringComparison.OrdinalIgnoreCase));
     }
 

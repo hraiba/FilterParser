@@ -14,21 +14,21 @@ public class FilterParserTests
                        "filters": [
                          {
                            "field": "Name",
-                           "operator": "contains",
+                           "keyword": "contains",
                            "value": "Mo"
                          },
                          {
-                           "operator": "contains",
+                           "keyword": "contains",
                            "field": "LastName",
                            "value": "Hr"
                          },
                          {
-                           "operator": "equal",
+                           "keyword": "equal",
                            "field": "Mark",
                            "value": 9
                          }
                        ],
-                       "logic": "and"
+                       "operator": "and"
                      }
                      """;
         var students = new List<Student>()
@@ -38,7 +38,7 @@ public class FilterParserTests
         };
         
         //Act
-        var result = CompositeFilter<Student>.ApplyFilter(students, filter);
+        var result = FilterParser<Student>.ApplyFilter(students, filter);
         var enumerateResult = result.ToList();
         Assert.NotNull(result);
         Assert.NotEmpty(enumerateResult);
@@ -55,16 +55,16 @@ public class FilterParserTests
                                 "filters": [
                                   {
                                     "field": "Name",
-                                    "operator": "contains",
+                                    "keyword": "contains",
                                     "value": "Mo"
                                   },
                                   {
-                                    "operator": "equal",
+                                    "keyword": "equal",
                                     "field": "Mark",
                                     "value": 8
                                   }
                                 ],
-                                "logic": "or"
+                                "operator": "or"
                               }
                               """;
         var students = new List<Student>()
@@ -75,7 +75,7 @@ public class FilterParserTests
         };
         
         //Act
-        var result = CompositeFilter<Student>.ApplyFilter(students, filter);
+        var result = FilterParser<Student>.ApplyFilter(students, filter);
         var enumerateResult = result.ToList();
         Assert.NotNull(result);
         Assert.NotEmpty(enumerateResult);

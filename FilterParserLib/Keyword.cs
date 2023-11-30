@@ -1,7 +1,7 @@
 
 namespace FilterParserLib;
 
-public enum Operator
+public enum Keyword
 {
     Equal,
     NotEqual,
@@ -13,7 +13,7 @@ public enum Operator
     StartWith,
 }
 
-public enum Logic
+public enum Operator
 {
     And,
     Or,
