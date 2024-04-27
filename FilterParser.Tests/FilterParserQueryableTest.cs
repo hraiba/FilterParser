@@ -1,4 +1,4 @@
-using FilterParserLib;
+﻿using FilterParserLib;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -10,34 +10,34 @@ public class FilterParserQueryableTest
     public void Given_Filter_With_And_Logic_Return_IQueryable()
     {
         //Arrange
-        const string filter = """
-                              {
-                                "filters": [
-                                  {
-                                    "field": "Name",
-                                    "operation": "contains",
-                                    "value": "Mo"
-                                  },
-                                  {
-                                    "operation": "contains",
-                                    "field": "LastName",
-                                    "value": "Hr"
-                                  },
-                                  {
-                                    "operation": "equal",
-                                    "field": "Mark",
-                                    "value": 9
-                                  }
-                                ],
-                                "operator": "and"
-                              }
-                              """;
+        const string Filter = @"
+{
+  ""filters"": [
+    {
+      ""field"": ""Name"",
+      ""operation"": ""contains"",
+      ""value"": ""Mo""
+    },
+    {
+      ""operation"": ""contains"",
+      ""field"": ""LastName"",
+      ""value"": ""Hr""
+    },
+    {
+      ""operation"": ""equal"",
+      ""field"": ""Mark"",
+      ""value"": 9
+    }
+  ],
+  ""operator"": ""and""
+}";
 
-        using var x = GetDbSetWithData();
-        var ds = x.Set<Student>().AsNoTracking();
+
+        using var dbContext = GetDbContextWithEntity();
+        var students = dbContext.Set<Student>().AsNoTracking();
         
         //Act
-        var result = ds.ApplyFilter(filter).Select(x => x.Mark);
+        var result = students.Filter(Filter).Select(x => x.Mark);
         var enumerateResult = result.ToList();
         Assert.NotNull(result);
         Assert.IsAssignableFrom<IQueryable<int>>(result);
@@ -45,7 +45,7 @@ public class FilterParserQueryableTest
         Assert.Equal(1, result.Count());
     }
 
-    private DbContext GetDbSetWithData()
+    private DbContext GetDbContextWithEntity()
     {
         var options = new DbContextOptionsBuilder<Context>()
             .UseInMemoryDatabase(databaseName: $"Test.{Random.Shared.Next()}")

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace FilterParserLib;
 
@@ -7,4 +8,11 @@ internal record Filter(
     Operation Operation,
     JsonElement Value,
     Operator Operator,
-    IEnumerable<Filter>? Filters);
+    IEnumerable<Filter>? Filters)
+{
+    public object? GetValue(Type type) => JsonSerializer.Deserialize(
+        Value.GetRawText(),
+        type,
+        new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } }
+    );
+}

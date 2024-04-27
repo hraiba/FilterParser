@@ -7,12 +7,9 @@ namespace FilterParserLib;
 
 public static class FilterParser
 {
-    public static IQueryable<T> ApplyFilter<T>(IEnumerable<T> dataSet, string? jsonString)
+    public static IQueryable<T> Filter<T>(IEnumerable<T>? dataSet, string? jsonString)
     {
-        if (dataSet == null)
-        {
-            throw new ArgumentNullException(nameof(dataSet));
-        }
+        ArgumentNullException.ThrowIfNull(dataSet);
 
         if (!dataSet.Any())
         {
@@ -24,24 +21,24 @@ public static class FilterParser
             return dataSet.AsQueryable();
         }
 
-        var rootFilter = GetFilter(jsonString);
+        Search? rootFilter = GetFilter(jsonString);
 
-        var query = dataSet.AsQueryable();
-        return ApplyFilter(query, rootFilter);
+        IQueryable<T> query = dataSet.AsQueryable();
+        return Filter(query, rootFilter);
     }
 
-    public static IQueryable<T> ApplyFilter<T>(this IQueryable<T> query, string jsonString)
+    public static IQueryable<T> Filter<T>(this IQueryable<T> query, string jsonString)
     {
         if (string.IsNullOrWhiteSpace(jsonString))
         {
             return query;
         }
 
-        var filter = GetFilter(jsonString);
-        return ApplyFilter(query, filter);
+        Search? filter = GetFilter(jsonString);
+        return Filter(query, filter);
     }
 
-    private static IQueryable<T> ApplyFilter<T>(IQueryable<T> query, RootFilter? rootFilter)
+    private static IQueryable<T> Filter<T>(IQueryable<T> query, Search? rootFilter)
     {
         if (rootFilter?.Filters == null || !rootFilter.Filters.Any())
         {
@@ -70,14 +67,19 @@ public static class FilterParser
             };
         }
 
-        var value = GetValue(filter);
+        MemberExpression property = Expression.Property(parameterExpression, filter.Field);
+        var value = filter.GetValue(property.Type);
         if (value is null)
         {
-            return Expression.Throw(Expression.Constant(new ArgumentException($"Invalid value: {filter.Value}")));
+            return Expression.Equal(property, Expression.Constant(null, property.Type));
         }
 
-        var property = Expression.Property(parameterExpression, filter.Field);
-        var constant = Expression.Constant(value);
+        if (property.Type.IsGenericType && property.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+        {
+            property = Expression.Property(property, "Value");
+        }
+
+        ConstantExpression constant = Expression.Constant(value);
 
         return filter.Operation switch
         {
@@ -87,8 +89,8 @@ public static class FilterParser
             Operation.LessThanOrEqual => Expression.LessThanOrEqual(property, constant),
             Operation.GreaterThan => Expression.GreaterThan(property, constant),
             Operation.GreaterThanOrEqual => Expression.GreaterThanOrEqual(property, constant),
-            Operation.Contains => GetContains(property, constant),
-            Operation.StartWith => GetStartWith(property, constant),
+            Operation.Contains => property.GetContains(constant),
+            Operation.StartWith => property.GetStartWith(constant),
             _ => throw new ArgumentException($"Unsupported operation: {filter.Operation}"),
         };
     }
@@ -100,17 +102,18 @@ public static class FilterParser
             Expression.Throw(Expression.Constant(new ArgumentException("Invalid filters")));
         }
 
-        var parameterExpression = Expression.Parameter(typeof(T), "x");
-        Expression andExpression = filters
-                                       .Select(filter => BuildFilterExpression(filter, parameterExpression))
-                                       .Aggregate<Expression?, Expression?>(
-                                           null,
-                                           (current, filterExpression) =>
-                                               current == null
-                                                   ? filterExpression
-                                                   : Expression.AndAlso(current, filterExpression!))
-                                   ?? Expression.Constant(false);
+        ParameterExpression parameterExpression = Expression.Parameter(typeof(T), "x");
+        Expression? andExpression = null;
+        foreach (Filter filter in filters)
+        {
+            Expression filterExpression = BuildFilterExpression(filter, parameterExpression);
+            andExpression =
+                andExpression == null
+                    ? filterExpression
+                    : Expression.AndAlso(andExpression, filterExpression);
+        }
 
+        andExpression ??= Expression.Constant(false);
         return Expression.Lambda<Func<T, bool>>(andExpression, parameterExpression);
     }
 
@@ -121,77 +124,25 @@ public static class FilterParser
             Expression.Throw(Expression.Constant(new ArgumentException("Invalid filters")));
         }
 
-        var parameterExpression = Expression.Parameter(typeof(T), "x");
-        Expression orExpression = filters.Select(filter => BuildFilterExpression(filter, parameterExpression))
-                                      .Aggregate<Expression?, Expression?>(null, (current, filterExpression) =>
-                                          current == null
-                                              ? filterExpression
-                                              : Expression.OrElse(current, filterExpression!))
-                                  ?? Expression.Constant(false);
+        ParameterExpression parameterExpression = Expression.Parameter(typeof(T), "x");
+        Expression? orExpression = null;
+        foreach (Filter filter in filters)
+        {
+            Expression filterExpression = BuildFilterExpression(filter, parameterExpression);
+            orExpression =
+                orExpression == null
+                    ? filterExpression
+                    : Expression.OrElse(orExpression, filterExpression);
+        }
 
+        orExpression ??= Expression.Constant(false);
         return Expression.Lambda<Func<T, bool>>(orExpression, parameterExpression);
     }
 
-    private static MethodCallExpression GetContains(MemberExpression? property, ConstantExpression constant)
-    {
-        return Expression.Call(
-            property,
-            typeof(string).GetMethod("Contains", new[] {typeof(string)})!,
-            constant);
-    }
-
-    private static MethodCallExpression GetStartWith(MemberExpression? property, ConstantExpression constant)
-    {
-        var startWithMethod =
-            typeof(string).GetMethod("StartsWith", new[] {typeof(string), typeof(StringComparison)});
-        var constantLower = Expression.Call(constant, typeof(string).GetMethod("ToLower", Type.EmptyTypes)!);
-        return Expression.Call(property, startWithMethod!, constantLower,
-            Expression.Constant(StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static object? GetValue(Filter? filter)
-    {
-        if (filter?.Value == null || string.IsNullOrWhiteSpace(filter.Value.ToString()))
-        {
-            return null;
-        }
-
-        return filter.Value.ValueKind switch
-        {
-            JsonValueKind.Number => GetNumber(filter.Value),
-            JsonValueKind.String => filter.Value.GetString(),
-            JsonValueKind.True => filter.Value.GetBoolean(),
-            JsonValueKind.False => filter.Value.GetBoolean(),
-            _ => null
-        };
-    }
-
-    private static object GetNumber(JsonElement filterValue)
-    {
-        if (filterValue.TryGetInt32(out var @int))
-        {
-            return @int;
-        }
-
-        if (filterValue.TryGetInt64(out var int64))
-        {
-            return int64;
-        }
-
-        if (filterValue.TryGetDouble(out var @double))
-        {
-            return @double;
-        }
-
-        return filterValue.GetDecimal();
-    }
-
-    private static RootFilter? GetFilter(string jsonString)
-    {
-        return JsonSerializer.Deserialize<RootFilter>(jsonString, new JsonSerializerOptions()
-        {
-            PropertyNameCaseInsensitive = true,
-            Converters = {new JsonStringEnumConverter()}
-        });
-    }
+    private static Search? GetFilter(string jsonString)
+        => JsonSerializer.Deserialize<Search>(jsonString,
+            new JsonSerializerOptions()
+            {
+                PropertyNameCaseInsensitive = true, Converters = {new JsonStringEnumConverter()}
+            });
 }

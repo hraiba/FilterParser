@@ -12,9 +12,3 @@ internal enum Operation
     Contains,
     StartWith,
 }
-
-internal enum Operator
-{
-    And,
-    Or,
-}
