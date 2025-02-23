@@ -8,13 +8,13 @@ internal static class MemberExpressionExtensions
     internal static MethodCallExpression GetContains(this MemberExpression? property, ConstantExpression constant) =>
         Expression.Call(
             property,
-            typeof(string).GetMethod("Contains", new[] { typeof(string) })!,
+            typeof(string).GetMethod("Contains", [typeof(string)])!,
             constant);
 
     internal static MethodCallExpression GetStartWith(this MemberExpression? property, ConstantExpression constant)
     {
         MethodInfo? startWithMethod =
-            typeof(string).GetMethod("StartsWith", new[] { typeof(string), typeof(StringComparison) });
+            typeof(string).GetMethod("StartsWith", [typeof(string), typeof(StringComparison)]);
         MethodCallExpression constantLower =
             Expression.Call(constant, typeof(string).GetMethod("ToLower", Type.EmptyTypes)!);
         return Expression.Call(property, startWithMethod!, constantLower,
@@ -22,40 +22,3 @@ internal static class MemberExpressionExtensions
 
     }
 }
-
- internal static class IQueryableExtensions
- {
-    internal static IQueryable<T> ApplyOrderBy<T>(this IQueryable<T> query, OrderBy orderBy)
-    {
-        var propertyType = typeof(T).GetProperty(orderBy.Field)?.PropertyType
-        ?? throw new InvalidOperationException($"Property {orderBy.Field} not found in {typeof(T).Name}");
-
-        if(propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
-        {
-            propertyType = propertyType.GetGenericArguments()[0];
-        }
-
-        var methodName = orderBy.Direction == Direction.Asc ? "OrderBy" : "OrderByDescending";
-        var method = typeof(Queryable).GetMethods()
-        .First(m => m.Name == methodName && m.GetParameters().Length == 2);
-
-        var genericMethod = method.MakeGenericMethod(typeof(T), propertyType);
-
-        ParameterExpression parameter = Expression.Parameter(typeof(T), "x");
-        MemberExpression property = Expression.Property(parameter, orderBy.Field);
-        var lambda = Expression.Lambda(property, parameter);
-
-        if (genericMethod == null)
-        {
-            throw new InvalidOperationException("Failed to find the generic method.");
-        }
-        if (lambda == null)
-        {
-
-         throw new InvalidOperationException("Failed to create the lambda expression.");
-        }
-
-        return (IQueryable<T>?)genericMethod.Invoke(null, new object[] { query, lambda }) 
-               ?? throw new InvalidOperationException("The method invocation returned null.");
-    }
- }
