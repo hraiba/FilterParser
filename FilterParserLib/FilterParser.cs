@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -45,13 +46,20 @@ public static class FilterParser
             return query;
         }
 
-        return rootFilter.Operator switch
+        var  filter = rootFilter.Operator switch
         {
             Operator.And => query.Where(GetAndFilterExpression<T>(rootFilter.Filters)),
             Operator.Or => query.Where(GetOrFilterExpression<T>(rootFilter.Filters)),
             _ => query
         };
+
+        var order = rootFilter.OrderBy is null 
+        ? filter 
+        : filter.ApplyOrderBy(rootFilter.OrderBy);
+        
+        return order;
     }
+
 
     private static Expression BuildFilterExpression(Filter filter, ParameterExpression parameterExpression)
     {
@@ -139,10 +147,13 @@ public static class FilterParser
         return Expression.Lambda<Func<T, bool>>(orExpression, parameterExpression);
     }
 
-    private static Search? GetFilter(string jsonString)
-        => JsonSerializer.Deserialize<Search>(jsonString,
-            new JsonSerializerOptions()
-            {
-                PropertyNameCaseInsensitive = true, Converters = {new JsonStringEnumConverter()}
-            });
+
+private static Search? GetFilter(string jsonString)
+    => JsonSerializer.Deserialize<Search>(jsonString,
+        new JsonSerializerOptions()
+        {
+            PropertyNameCaseInsensitive = true,
+                Converters = {new JsonStringEnumConverter()},
+                AllowTrailingCommas = true,
+        });
 }

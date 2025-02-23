@@ -15,4 +15,5 @@ internal record Filter(
         type,
         new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } }
     );
+
 }
