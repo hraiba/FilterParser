@@ -432,4 +432,92 @@ public class FilterParserTests
         Assert.NotEmpty(enumerateResult);
         Assert.Equal(3, result.Count());
     }
+
+
+
+    [Fact]
+    public void Given_Filter_With_OrderBy_desc_Logic_Return_IQueryable()
+    {
+        //Arrange
+        const string filter = """
+
+                              {
+                                "filters": [
+                                  {
+                                    "operation": "contains",
+                                    "field": "LastName",
+                                    "value": "Hr"
+                                  },
+                                ],
+                                "operator": "and",
+                                "orderBy":{
+                                    "field": "Mark",
+                                    "direction": "desc"
+                                }
+                              }
+
+                              """;
+
+        var students = new List<Student>()
+        {
+            new() { Name = "Louay", LastName = "Hraiba", Mark = 8 },
+            new() { Name = "Mohammad", LastName = "Hraiba", Mark = 9 },
+            new() { Name = "Mike", LastName = "Smith", Mark = 19 },
+        };
+
+        //Act
+        var result = FilterParserLib.FilterParser.Filter(students, filter);
+        var enumerateResult = result.ToList();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.IsAssignableFrom<IQueryable>(result);
+        Assert.NotEmpty(enumerateResult);
+        Assert.Equal(2, result.Count());
+        Assert.True(enumerateResult.First().Mark == 9);
+    }
+    
+
+
+    [Fact]
+    public void Given_Filter_With_OrderBy_Asc_Logic_Return_IQueryable()
+    {
+        //Arrange
+        const string filter = """
+
+                              {
+                                "filters": [
+                                  {
+                                    "operation": "contains",
+                                    "field": "LastName",
+                                    "value": "Hr"
+                                  },
+                                ],
+                                "operator": "and",
+                                "orderBy":{
+                                    "field": "Mark",
+                                    "direction": "asc"
+                                }
+                              }
+
+                              """;
+
+        var students = new List<Student>()
+        {
+            new() { Name = "Louay", LastName = "Hraiba", Mark = 8 },
+            new() { Name = "Mohammad", LastName = "Hraiba", Mark = 9 },
+            new() { Name = "Mike", LastName = "Smith", Mark = 19 },
+        };
+
+        //Act
+        var result = FilterParserLib.FilterParser.Filter(students, filter);
+        var enumerateResult = result.ToList();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.IsAssignableFrom<IQueryable>(result);
+        Assert.NotEmpty(enumerateResult);
+        Assert.Equal(2, result.Count());
+        Assert.True(enumerateResult.First().Mark == 8);
+    }
 }
